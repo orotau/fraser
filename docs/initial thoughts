@@ -1,0 +1,29 @@
+Some initial thoughts on the project
+
+The key idea is to identify phrases.
+
+I am not sure how to do that :-)
+
+First Thought
+Identify easy to identify phrases and then see what's left
+
+i.e. do 1 or more passes.
+
+Where to start?
+( "i" not followed by "te")
+
+Word frequencies perhaps?
+
+Clear phrase starters
+Each phrase is of the form [ pep ] [ nucleus ] [ pop ]
+
+We need a word (or something like "tō mātou") the presence of which **guarantees** we are in the [ pep ]
+
+4 Identifiable possibilities
+
+1 - [ verbal particle ]
+2 - [ preposition determiner ]
+3 - [ determiner ]
+4 - [ preposition ]
+
+The words that we use must **only** be able to be in the preposed periphery. A counter example 'ana' is no good. It can be in both the "pep" and the "pop"
