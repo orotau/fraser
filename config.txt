@@ -1,0 +1,3 @@
+[graham-HP-Laptop]
+dump_path = /home/graham/PythonProjects/rarangi_kupu/web_dumps_html/
+
