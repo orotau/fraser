@@ -1,0 +1,23 @@
+What makes a group of words, breakable upable into phrases?
+
+Do we split up the group of words before we analyse?
+
+Start with simple sentences.
+
+Starts with a capital letter? (not necessary)
+
+Acceptable 
+- punctuation 
+- position
+- number of pieces
+
+
+Make sure only Māori words in the sentence
+dash (only if part of a compound word)
+comma (ok) - can be used as a check that this is a phrase splitter
+semi-colon (ok) - can be used as a check that this is a phrase splitter
+colon (ok) - can be used as a check that this is a phrase splitter
+space (shrink >1 to 1, trim from beginning and end)
+full stop (only if at end of group of words)
+inverted commas (only if at the end and at the beginning)
+No repeated punctuation apart from spaces

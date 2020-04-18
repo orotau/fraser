@@ -31,11 +31,15 @@ def process_source_file(file_name):
     with open(source_file_path, 'r') as f:
         source_file = f.readlines()
 
+    for line_number, line in enumerate(source_file, start=1):
+        results[f'{line_number:05}'] = line.split()
+
+    print(results)
     post_gateway_files_path = (cf.configfile[cf.computername]['post_gateway_files_path'])
     post_gateway_file_path = post_gateway_files_path + file_name + \
                              os.extsep + YAML_EXTENSION
     with open(post_gateway_file_path, "w") as myfile:
-        yaml.dump(source_file[0].split(), myfile, allow_unicode=True)
+        yaml.dump(results, myfile, allow_unicode=True)
     return True
 
 
