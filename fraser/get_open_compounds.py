@@ -1,7 +1,8 @@
+import pprint
 import config
 import teina
 
-def get_open_compounds_list(file_id):
+def get_open_compounds_list(file_id = 'hpk_tauira'):
 
     # the file_id is used for the list of teina
 
@@ -50,7 +51,8 @@ def get_open_compounds_list(file_id):
     # 'longer version of the banana'
 
     open_compounds_list.sort(key=len, reverse=True)
-
+    print ("hi")
+    pprint.pprint(open_compounds_list)
     return open_compounds_list
 
-
+get_open_compounds_list()
