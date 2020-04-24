@@ -13,6 +13,7 @@ class ConfigFile():
 
     config_paths = {
         'graham-HP-Laptop': '/home/graham/PythonProjects/fraser/config.txt',
+        'graham-desktop-ubuntu': '/home/graham/PythonProjects/fraser/config.txt',
         }
 
     def __init__(self):

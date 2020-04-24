@@ -11,63 +11,136 @@ from collections import namedtuple
 import os
 import re
 import maori_regex
-import teina
+import get_open_compounds
 
 Text_Chunk = namedtuple('Text_Chunk', 'text_chunk start end type')
 
-def get_open_compounds_list(file_id):
 
-    # the file_id is used for the list of teina
+def process_text_file(file_id, first_line, last_line):
 
-    HPK_OPEN_COMPOUNDS_FILE_NAME = "hpk_open_compounds.txt"
-    OTHER_OPEN_COMPOUNDS_FILE_NAME = "other_open_compounds.txt"
+    first_line = int(first_line)
+    last_line = int(last_line)
+
+    if first_line > last_line:
+        import sys
+        print("First Line can't be greater than Last Line")
+        sys.exit()
+
+    TEXT_EXTENSION = "txt"
+    PICKLE_EXTENSION = "p"
 
     cf = config.ConfigFile()
     text_files_path = (cf.configfile[cf.computername]['text_files_path'])
+    text_file_path = text_files_path + file_id + os.extsep + TEXT_EXTENSION
 
-    open_compounds_list = []
+    # get the open compounds list to use to search for
+    ocs = get_open_compounds.get_open_compounds_list(file_id)
 
-    hpk_open_compounds_file_path = \
-    text_files_path + HPK_OPEN_COMPOUNDS_FILE_NAME
- 
-    other_open_compounds_file_path = \
-    text_files_path + OTHER_OPEN_COMPOUNDS_FILE_NAME 
+    # the dictionary to hold the results
+    chunked_lines = {}
 
-    with open(hpk_open_compounds_file_path, 'r') as f:
-        for line in f:
-            open_compounds_list.append(line.replace('\n', ''))
+    # create a list of tuples (line number, line)
+    # containing the lines we want to chunk
+    with open(text_file_path, 'r') as f:
+        text_file_to_check = f.readlines()
+        lines_in_file = len(text_file_to_check)
+        text_file_to_check.insert(0, None) # align index number with line number
 
-    with open(other_open_compounds_file_path, 'r') as f:
-        for line in f: 
-            open_compounds_list.append(line.replace('\n', ''))  
+    lines_to_check = []    
 
-    # add any teina that are themselves open compounds
-    # and have a big brother in the list of open compounds
-    for big_brother, little_brothers in teina.teina[file_id]:
-        if big_brother in open_compounds_list:
-            for little_brother in little_brothers:
-                if ' ' in little_brother:                    
-                    open_compounds_list.append(little_brother)
+    if first_line == 0 and last_line == 0:
+        first_line_to_use = 1
+        last_line_to_use = lines_in_file
+    else:
+        first_line_to_use = first_line
+        last_line_to_use = min(last_line, lines_in_file)
+
+    for x in range(first_line_to_use, last_line_to_use + 1):
+        lines_to_check.append((x, text_file_to_check[x]))
+
+
+    for line_number, line in lines_to_check:
+        print("=============== " + str(line_number) + " ==============")
+        print (line)
+        
+        #initialise dictionary value
+        chunked_lines[line_number] = []
+
+        #Group 1 - Open Compounds
+        CHUNK_TYPE = "oc"
+        for oc in ocs:
+            regex_string = maori_regex.get_oc_regex(oc)
+            oc_matches = re.finditer(regex_string, line)
+            for oc_match in oc_matches:
+                print(line_number, oc_match)
+                try:
+                    return_from_create_Text_Chunk = \
+                        create_Text_Chunk(chunked_lines[line_number],
+                        oc_match.group(1),
+                        oc_match.start(1),
+                        oc_match.end(1),
+                        CHUNK_TYPE)
+                except NameError:
+                    print("something has gone wrong")
+                else:
+                    if return_from_create_Text_Chunk:
+                        print(return_from_create_Text_Chunk)
+                        chunked_lines[line_number].append(
+                        return_from_create_Text_Chunk)
+                    else:
+                        print("all inside")
+
+        #Group 2 to Group 8
+        for chunk_type, regex_string in maori_regex.static_regexes:
+            chunk_matches = re.finditer(regex_string, line, re.VERBOSE)
+            for chunk_match in chunk_matches:
+                try:
+                    return_from_create_Text_Chunk = \
+                        create_Text_Chunk(chunked_lines[line_number],
+                        chunk_match.group(1),
+                        chunk_match.start(1),
+                        chunk_match.end(1),
+                        chunk_type)
+                except NameError:
+                    if chunk_type.startswith("misc"):
+                        # this is what is left over so if it
+                        # overlaps with anything else we have
+                        # made a mistake
+                        print("something HAS gone wrong")
+                    else:
+                        print("something MAY have gone wrong")
+                else:
+                    if return_from_create_Text_Chunk:
+                        print(return_from_create_Text_Chunk)
+                        chunked_lines[line_number].append(
+                        return_from_create_Text_Chunk)
+                    else:
+                        print(chunk_match.group(1),
+                        chunk_match.start(1),
+                        chunk_match.end(1),
+                        chunk_type)
+                        print("all inside")
+
+    from operator import itemgetter
+    for k, v in chunked_lines.items():
+        sorted_chunks = sorted(v,key=itemgetter(1))
+        pprint.pprint(sorted_chunks)
+        print("==================================")
+        recreated_line = ''
+        for chunk in sorted_chunks:
+            recreated_line = recreated_line + chunk.text_chunk
+        if text_file_to_check[k].lower() == recreated_line.lower():
+            pass
         else:
-            # big brother not in the list of open compounds
-            if ' ' in big_brother:
-                print("Must add " + big_brother + " to open compounds")
-                return False
-            else:
-                # not an open compound but it could have open compound teina
-                for little_brother in little_brothers:
-                    if ' ' in little_brother:                    
-                        open_compounds_list.append(little_brother)                 
+            print('ERROR')
+            print(text_file_to_check[k])
+            print(recreated_line)
 
-    # sort the list by length (longest at start)
-    # to avoid say finding 'the banana' and never finding
-    # 'longer version of the banana'
+    import pickle
+    pickle_files_path = (cf.configfile[cf.computername]['pickle_files_path'])
+    pickle_file_path = pickle_files_path + file_id + os.extsep + PICKLE_EXTENSION
 
-    open_compounds_list.sort(key=len, reverse=True)
-
-    return open_compounds_list
-
-
+    pickle.dump( chunked_lines, open( pickle_file_path, "wb" ) )
 
 
 def create_Text_Chunk(existing_Text_Chunks, text_chunk, chunk_start, chunk_end, chunk_type):
@@ -136,137 +209,6 @@ def create_Text_Chunk(existing_Text_Chunks, text_chunk, chunk_start, chunk_end, 
         print("chunk_type : ", chunk_type)
         print("====================")
         raise NameError('Overlap Found')
-    
-
-                    
-def process_text_file(file_id, first_line, last_line):
-
-    first_line = int(first_line)
-    last_line = int(last_line)
-
-    if first_line > last_line:
-        import sys
-        print("First Line can't be greater than Last Line")
-        sys.exit()
-
-    TEXT_EXTENSION = "txt"
-    PICKLE_EXTENSION = "p"
-
-    cf = config.ConfigFile()
-    text_files_path = (cf.configfile[cf.computername]['text_files_path'])
-    text_file_path = text_files_path + file_id + os.extsep + TEXT_EXTENSION
-
-    # get the open compounds list to use to search for
-    ocs = get_open_compounds_list(file_id)
-
-    # the dictionary to hold the results
-    chunked_lines = {}
-
-    # create a list of tuples (line number, line)
-    # containing the lines we want to chunk
-    with open(text_file_path, 'r') as f:
-        text_file_to_check = f.readlines()
-        lines_in_file = len(text_file_to_check)
-        text_file_to_check.insert(0, None) # align index # with line number
-
-    lines_to_check = []    
-
-    if first_line == 0 and last_line == 0:
-        first_line_to_use = 1
-        last_line_to_use = lines_in_file
-    else:
-        first_line_to_use = first_line
-        last_line_to_use = min(last_line, lines_in_file)
-
-    for x in range(first_line_to_use, last_line_to_use + 1):
-        lines_to_check.append((x, text_file_to_check[x]))
-
-
-    for line_number, line in lines_to_check:
-        print("=============== " + str(line_number) + " ==============")
-        
-        #initialise dictionary value
-        chunked_lines[line_number] = []
-
-        #Group 1 - Open Compounds
-        CHUNK_TYPE = "oc"
-        for oc in ocs:
-            regex_string = maori_regex.get_oc_regex(oc)
-            oc_matches = re.finditer(regex_string, line)
-            for oc_match in oc_matches:
-                print(line_number, oc_match)
-                try:
-                    return_from_create_Text_Chunk = \
-                        create_Text_Chunk(chunked_lines[line_number],
-                        oc_match.group(1),
-                        oc_match.start(1),
-                        oc_match.end(1),
-                        CHUNK_TYPE)
-                except NameError:
-                    print("something has gone wrong")
-                else:
-                    if return_from_create_Text_Chunk:
-                        print(return_from_create_Text_Chunk)
-                        chunked_lines[line_number].append(
-                        return_from_create_Text_Chunk)
-                    else:
-                        print("all inside")
-
-        #Group 2 to Group 8
-        for chunk_type, regex_string in maori_regex.static_regexes:
-            chunk_matches = re.finditer(regex_string, line, re.VERBOSE)
-            for chunk_match in chunk_matches:
-                try:
-                    return_from_create_Text_Chunk = \
-                        create_Text_Chunk(chunked_lines[line_number],
-                        chunk_match.group(1),
-                        chunk_match.start(1),
-                        chunk_match.end(1),
-                        chunk_type)
-                except NameError:
-                    if chunk_type.startswith("misc"):
-                        # this is what is left over so if it
-                        # overlaps with anything else we have
-                        # made a mistake
-                        print("something HAS gone wrong")
-                    else:
-                        print("something MAY have gone wrong")
-                else:
-                    if return_from_create_Text_Chunk:
-                        print(return_from_create_Text_Chunk)
-                        chunked_lines[line_number].append(
-                        return_from_create_Text_Chunk)
-                    else:
-                        print(chunk_match.group(1),
-                        chunk_match.start(1),
-                        chunk_match.end(1),
-                        chunk_type)
-                        print("all inside")
-
-
-
-    from operator import itemgetter
-    for k, v in chunked_lines.items():
-        sorted_chunks = sorted(v,key=itemgetter(1))
-        pprint.pprint(sorted_chunks)
-        print("==================================")
-        recreated_line = ''
-        for chunk in sorted_chunks:
-            recreated_line = recreated_line + chunk.text_chunk
-        if text_file_to_check[k].lower() == recreated_line.lower():
-            pass
-        else:
-            print('ERROR')
-            print(text_file_to_check[k])
-            print(recreated_line)
-
-    import pickle
-    pickle_files_path = (cf.configfile[cf.computername]['pickle_files_path'])
-    pickle_file_path = pickle_files_path + file_id + os.extsep + PICKLE_EXTENSION
-
-    pickle.dump( chunked_lines, open( pickle_file_path, "wb" ) )
-           
-
 
 if __name__ == '__main__':
 
